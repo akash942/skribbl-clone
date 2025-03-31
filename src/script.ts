@@ -11,8 +11,8 @@ enum TOOLS {
 let events = 0;
 let isDrawing = false;
 let fillBucket = false;
-const canvasWidth = 800;
-const canvasHeight = 600;
+const canvasWidth = canvas.width;
+const canvasHeight = canvas.height;
 let CurrentTool = TOOLS.PENCIL;
 
 ctx.fillStyle = "black";
@@ -84,15 +84,14 @@ function getClickPosition(event: MouseEvent) {
     };
 }
 
-
 let startR: number;
 let startG: number;
 let startB: number;
 canvas.addEventListener("dblclick", (e) => {
     const { x, y } = getClickPosition(e);
-    console.log("clicked Pos=> x: ",x+" y:",y)
+    console.log("clicked Pos=> x: ", x + " y:", y);
     const startPixelData = ctx.getImageData(x, y, 1, 1).data;
-    console.log()
+    console.log();
     startR = startPixelData[0]!;
     startG = startPixelData[0]!;
     startB = startPixelData[0]!;
@@ -106,61 +105,113 @@ function floodFill(
 ) {
     const imageData = ctx.getImageData(0, 0, canvasHeight, canvasWidth);
     console.log(imageData.data.length);
-    floodFillRemastered(x,y,originalPixel)
+    bucketFill(ctx,x,y,255,0,0)
 }
 
 type pixelPos = [number, number];
+const fill_threshold = 1
 
-function floodFillRemastered(startX: number, startY: number, startPixelData: Uint8ClampedArray) {
-    const pixelStack: pixelPos[] = [[startX, startY]];
-    console.log("floodfill remastered called")
-    while(pixelStack.length){
-        let [x,y] = pixelStack.pop()!
-        let currPixelData = ctx.getImageData(x,y,1,1).data
 
-        while(y >=0 && compareTwoPixels(currPixelData,startPixelData)){
-            y--
-            currPixelData = ctx.getImageData(x,y,1,1).data
-        }
+//this is much faster because we are directly manipulating binary data using ctx.getimageData().data
+function bucketFill(
+    ctx: CanvasRenderingContext2D,
+    startX: number,
+    startY: number,
+    fillR: number,
+    fillG: number,
+    fillB: number
+) {
+    const stack: pixelPos[] = [[startX,startY]]
+    const imageData = ctx.getImageData(0,0,canvasWidth,canvasHeight)
+    let pixelPos = (startY*canvasWidth+startX)*4
+    const start_r = imageData.data[pixelPos + 0]!
+    const start_g = imageData.data[pixelPos + 1]!
+    const start_b = imageData.data[pixelPos + 2]!
+    const start_a = imageData.data[pixelPos + 3]!
 
-        y++
-        currPixelData = ctx.getImageData(x,y,1,1).data
-        
-        let reachLeft = false
-        let reachRight = false
-        console.log("currPos=> x: ",x+" y:",y)
-        while(y<canvasHeight && compareTwoPixels(currPixelData,startPixelData)){
-            console.log("fill rect was indeed called")
-            ctx.fillRect(x,y,1,1)
+    if (
+		Math.abs(fillR - start_r) <= fill_threshold &&
+		Math.abs(fillG - start_g) <= fill_threshold &&
+		Math.abs(fillB - start_b) <= fill_threshold &&
+		Math.abs(255 - start_a) <= fill_threshold//should be fillA here and not 255 will fix later
+	) {
+		return;
+	}
 
-            if(x>0){
-                if(compareTwoPixels(ctx.getImageData(x-1,y,1,1).data,startPixelData)){
-                    if(!reachLeft){
-                        pixelStack.push([x-1,y])
-                        reachLeft = true
-                    }
-                }else if(reachLeft){
-                    reachLeft = false
-                }
-            }
+    while (stack.length) {
+		let new_pos;
+		let x;
+		let y;
+		let reach_left;
+		let reach_right;
+		new_pos = stack.pop()!;
+		x = new_pos[0];
+		y = new_pos[1];
 
-            if(x<canvasWidth-1){
-                if(compareTwoPixels(ctx.getImageData(x+1,y,1,1).data,startPixelData)){
-                    if(!reachRight){
-                        pixelStack.push([x+1,y])
-                        reachRight = true
-                    }
-                }else if(reachRight){
-                    reachRight = false
-                }
-            }
-            
-            currPixelData = ctx.getImageData(x,y+1,1,1).data
-            y++
-        }
+		pixelPos = (y * canvasWidth + x) * 4;
+		while (should_fill_at(pixelPos)) {
+			y--;
+			pixelPos = (y * canvasWidth + x) * 4;
+		}
+		reach_left = false;
+		reach_right = false;
 
-    }
+		while (true) {
+			y++;
+			pixelPos = (y * canvasWidth + x) * 4;
+
+			if (!(y < canvasHeight && should_fill_at(pixelPos))) {
+				break;
+			}
+
+			do_fill_at(pixelPos);
+
+			if (x > 0) {
+				if (should_fill_at(pixelPos - 4)) {
+					if (!reach_left) {
+						stack.push([x - 1, y]);
+						reach_left = true;
+					}
+				} else if (reach_left) {
+					reach_left = false;
+				}
+			}
+
+			if (x < canvasWidth - 1) {
+				if (should_fill_at(pixelPos + 4)) {
+					if (!reach_right) {
+						stack.push([x + 1, y]);
+						reach_right = true;
+					}
+				} else if (reach_right) {
+					reach_right = false;
+				}
+			}
+
+			pixelPos += canvasWidth * 4;
+		}
+	}
+	ctx.putImageData(imageData, 0, 0);
+
+	function should_fill_at(pixelPos: number) {
+		return (
+			// matches start color (i.e. region to fill)
+			Math.abs(imageData.data[pixelPos + 0]! - start_r) <= fill_threshold &&
+			Math.abs(imageData.data[pixelPos + 1]! - start_g) <= fill_threshold &&
+			Math.abs(imageData.data[pixelPos + 2]! - start_b) <= fill_threshold &&
+			Math.abs(imageData.data[pixelPos + 3]! - start_a) <= fill_threshold
+		);
+	}
+
+    function do_fill_at(pixel_pos: number) {
+		imageData.data[pixel_pos + 0] = fillR;
+		imageData.data[pixel_pos + 1] = fillG;
+		imageData.data[pixel_pos + 2] = fillB;
+		imageData.data[pixel_pos + 3] = 255;
+	}
 }
+
+
 
 // //note: to find a pixel using r,c in 1D => grid[COLS*r-1+c]
 // function dfs(
