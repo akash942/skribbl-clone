@@ -12,6 +12,7 @@ body{
 }
 
 .container {
+    position: relative;
     display: flex;
     justify-content: center;    
     align-items: center;
@@ -22,4 +23,13 @@ body{
 
 #board {
     background-color: white;
+}
+
+.bucketColor {
+    background-color: red;
+    width: 20px;
+    height: 20px;
+    position: absolute;
+    left: 0px;
+    top: 0px;
 }
