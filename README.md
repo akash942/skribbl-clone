@@ -15,4 +15,8 @@ note: similar flood fill approach in js paint at 1j01/jspaint/src/image-manipula
 
 repo: https://github.com/1j01/jspaint
 
-the developer refereced this to achieve the speedup: https://hacks.mozilla.org/2011/12/faster-canvas-pixel-manipulation-with-typed-arrays/
+the developer refereced this to achieve the speedup(using typed arrays to manipulate pixels): https://hacks.mozilla.org/2011/12/faster-canvas-pixel-manipulation-with-typed-arrays/
+
+- current flood fill time: 15-20ms
+
+- can achieve more speed up using 32 bit arrays by avoiding iterating over 8 bit color channels which is what's happening in the 8 bit array right now

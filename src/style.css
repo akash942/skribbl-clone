@@ -29,7 +29,18 @@ body{
     background-color: red;
     width: 20px;
     height: 20px;
+}
+
+.tools {
     position: absolute;
-    left: 0px;
-    top: 0px;
+    top: 1rem;
+    left: 1rem;
+    width: 4rem;
+}
+
+.center {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
 }
